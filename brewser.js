@@ -515,6 +515,7 @@ function search(){
 							typeItem.innerHTML = type;
 							results.appendChild(typeItem);
 							typeItem.onclick = function(){
+								noResults.style.display = "none";
 								loaderBars.style.display = "block";
 								searchType = "type";
 								searchValue = type;
@@ -559,6 +560,7 @@ function search(){
 							barItem.appendChild(barRatingSquare);
 							results.appendChild(barItem);
 							barItem.onclick = function(){
+								noResults.style.display = "none";
 								document.getElementById("searchRemoverContainer").style.display = "none";
 								searcher.value = null;
 								searchValue = null;
@@ -607,6 +609,7 @@ function search(){
 							beerItem.innerHTML = brand + ' ' + name + ' ' + plato + '°' + " - " + type;
 							results.appendChild(beerItem);
 							beerItem.onclick = function(){
+								noResults.style.display = "none";
 								loaderBars.style.display = "block";
 								barResult = false;
 								searchValue = key;
@@ -650,10 +653,13 @@ function search(){
 	resultText.innerHTML = "V zadanej lokalite sa zobrazujú sa všetky bary:"
 }());
 
+var noResults = document.getElementById("noResults");
+
 //funkcia sluzi na zobrazovanie barov len na zaklade useku mapy
 function barsByMap(){
 	bars.once("value").then(function(snapshot) {
 		loaderBars.style.display = "none";
+		noResults.style.display = "block";
 		snapshot.forEach(function(childSnapshot) {
 			barFilter(childSnapshot);
 		});
@@ -667,6 +673,7 @@ function barsByMap(){
 function barsByBeerType(type){
 	bars.once("value").then(function(snap){
 		loaderBars.style.display = "none";
+		noResults.style.display = "block";
 		snap.forEach(function(childSnapshot){
 			childSnapshot.child("beers").forEach(function(beerchild){
 					if(beerchild.child("type").val() == type){
@@ -686,6 +693,7 @@ function barsByBeer(key){
 	var path = "beers/" + key;
 	bars.once("value").then(function(snap){
 		loaderBars.style.display = "none";
+		noResults.style.display = "block";
 		snap.forEach(function(childSnapshot){
 			var found = false;
 			if(childSnapshot.child(path).val()){
@@ -751,6 +759,7 @@ function barFilter(bar){
 	if(!(lon <= a[3] & lon >= a[1] & lat <= a[0] & lat >= a[2])){
 		return;
 	}
+	noResults.style.display = "none";
 	resultItem(bar);
 	return;	
 }
@@ -773,6 +782,7 @@ refreshButton.onclick = function(){
 	funkcia sa spusti po stlaceni tlacidla pre obnovenie barov pre zadany usek mapy
 */
 function refresh(){
+	noResults.style.display = "none";
 	loaderBars.style.display = "block";
 	setTimeout(function (){
 	}, 1000);
