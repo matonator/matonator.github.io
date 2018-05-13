@@ -8,14 +8,13 @@ html, body {
     width: 100vw; 
     height: 100vh;
     display: block;
-    font-family: 'Lato', sans-serif;
+    font-family: 'Ubuntu', sans-serif;
 }
 
 #top {
 	height: 80px;
 	display: flex;
-	
-	border-bottom: 2px solid black;
+	border-bottom: 1px solid rgb(183, 183, 183);
 	overflow:hidden;
 }
 
@@ -23,26 +22,41 @@ html, body {
 	padding: 10px;
 }
 
-#motoContainer{
+#quoteContainer{
 	display: table-cell;
-	width: calc(100% - 560px);
+	width: calc(100% - 475px);
 	height: 80px;
+	display: flex;
+	align-items: center;
 	background-color: rgb(214, 49, 65);
 	border-left: 2px solid rgb(214, 49, 65);
 }
-#moto{
-	padding-top: 30px;
+#quote{
 	padding-left: 25px;
 	font-size: 15px;
-	font-weight: 900;
+	font-weight: 700;
 	color: white;
+}
+
+#quoteAuthor{
+	padding-left: 5px;
+	font-size: 13px;
+	font-weight: 500;
+	color: white;
+	padding-top: 25px;
+}
+
+@media only screen and (max-width: 800px) {
+    #quote, #quoteAuthor {
+        display: none;
+    }
 }
 
 #searchFilterContainer{
 	overflow: auto;
 	display: flex;
 	justify-content: flex-end;
-	width: 560px;
+	width: 500px;
 	background-color: rgb(214, 49, 65);
 }
 
@@ -74,7 +88,7 @@ html, body {
 	font-size: 13px; 
     padding: 5px 5px 5px 5px; 
     border: 1px solid black;
-    border-radius: 5px;
+    border-radius: 3px;
   
 }
 
@@ -106,21 +120,22 @@ html, body {
 	font-weight: 400;
 }
 
-.emptyResult{
+#emptyResult{
 	width: 300px;
-	height: 50px;
+	height: 60px;
+	line-height: 60px;
 	display: flex;
 	align-items: center;
 	text-align: center;
 	justify-content: center;
 	font-size: 13px;
-	font-weight: 700;
+	font-weight: 500;
 }
 
 .itemCategory{
 	height: 20px;
 	font-size: 13px;
-	font-weight: 900;
+	font-weight: 700;
 	display: flex;
 	align-items: center;
 	padding-left: 10px;
@@ -139,7 +154,7 @@ html, body {
 	justify-content: center;
 	background-color: white;
 	font-size: 10px;
-	font-weight: 900;
+	font-weight: 700;
 	width: 19px;
 	height: 19px;
 	border-radius: 5px;
@@ -206,7 +221,7 @@ html, body {
 	justify-content: center;
 	font-size: 12px;
 	padding-top: 5px;
-	font-weight: 700;
+	font-weight: 500;
 }
 
 .filterItem{
@@ -297,7 +312,7 @@ html, body {
 	position: absolute;
 	top: 80px;
 	right: 20px;
-	width: 130px;
+	width: 140px;
 	height: 20px;
 	border-radius: 5px;
 	background-color: white;
@@ -308,6 +323,7 @@ html, body {
 	text-align: center;
 	font-size: 12px;
 	cursor: pointer;
+	display: none;
 }
 
 @media screen and (max-width: 500px) { 
@@ -367,7 +383,7 @@ html, body {
 	align-items: center;
 }
 .barName{
-	font-weight: 900;
+	font-weight: 700;
 	cursor: pointer;
 	text-decoration: underline;
 }
@@ -424,7 +440,7 @@ html, body {
 	justify-content: center;
 	background-color: white;
 	font-size: 13px;
-	font-weight: 900;
+	font-weight: 700;
 	width: 25px;
 	height: 25px;
 	border-radius: 5px;
@@ -471,6 +487,24 @@ html, body {
     background-color: rgba(0,0,0,0.4);
     text-align: center;
 }
+
+.x{
+    position: absolute;
+    top: 5px;
+    right: 5px;
+    width: 30px;
+    height: 30px;
+    line-height: 30px;
+    text-align: center;
+    vertical-align: middle;
+    color: rgba(214, 49, 65, 0.6);
+    font-size: 30px;
+}
+.x:hover{
+    color: rgba(214, 49, 65, 1);
+    cursor: pointer;
+}
+
 .popupContent{
 	background-color: #fefefe;
     padding: 30px;
@@ -526,7 +560,7 @@ html, body {
 
 .popupName{
 	height: 50px;
-	font-weight: 900;
+	font-weight: 700;
 	display: flex;
 	align-items: center;
 	font-size: 18px;
@@ -538,7 +572,7 @@ html, body {
 .popupRatingCount{
 	margin-left: 10px;
 	font-size: 10px;
-	font-weight: 700;
+	font-weight: 500;
 	text-align: left;
 }
 
@@ -597,13 +631,13 @@ html, body {
 	height: 20px;
 	width: 113px;
 	padding-top: 3px;
-	font-weight: 700;
+	font-weight: 500;
 	color: rgb(214, 49, 65);
 	font-size: 13px;
 }
 
 b{
-	font-weight: 700;
+	font-weight: 500;
 	color: rgb(214, 49, 65);
 }
 
@@ -639,7 +673,7 @@ b{
 	height: 25px;
 	padding-top: 25px;
   	white-space: nowrap;
-	font-weight: 700;
+	font-weight: 500;
 	font-size: 15px;
 }
 

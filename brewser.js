@@ -1,27 +1,78 @@
+//konstanty
 var bars = firebase.database().ref("bars").orderByChild("rating");
 var beers = firebase.database().ref("beers").orderByChild("brand");
 var types = firebase.database().ref("types");
+var openFilter = document.getElementById("open");
+var foodFilter = document.getElementById("food");
+var wifiFilter = document.getElementById("wifi");
+var dogsFilter = document.getElementById("dogs");
+var cardFilter = document.getElementById("card");
+var filter = document.getElementById("filter");
+var filterDropdown = document.getElementById("filterDropdown");
+var searchRemoverButton = document.getElementById("searchRemoverButton");
+var refreshButton = document.getElementById("refreshButton");
+var refreshInfo = document.getElementById("refreshInfo");
+var searcher = document.getElementById("searcher");
+var results = document.getElementById("searchResults");
+var emptyResult = document.getElementById("emptyResult");
 var today = new Date();
 var myMap = L.map('map').setView([49.197060, 16.611837], 13);
 var searchValue;
 var searchType;
 var barResult = false;
+//HTML element, ktory
+var resultText = document.getElementById("resultText");
+
+//HTML element predstavujuci nacitavanie barov
+var loaderBars = document.getElementById("loaderBars");
+//IP adresa zariadenia
+var IP;
+//datova struktura sluziaca na ukladanie znaciek barov na mape
 var markers = L.markerClusterGroup({
 	showCoverageOnHover: false,
 	maxClusterRadius: 60,
 });
-var resultText = document.getElementById("resultText");
-var loaderBars = document.getElementById("loaderBars");
+var quote = document.getElementById("quote");
+var quoteAuthor = document.getElementById("quoteAuthor");
+var quotes = [
+	["", "Nájdi tie najlepšie bary v Brne!"],
+	["Plato", '"He was a wise man who invented beer."'],
+	["Thomas Jefferson", '"Beer, if drunk in moderation, softens the temper, cheers the spirit and promotes health."'],
+	["Benjamin Franklin", '"Beer is proof that God loves us and wants us to be happy."'],
+	["", "Nájdi tie najlepšie bary v Brne!"],
+	["Winston Churchhill", '"Most people hate the taste of beer — to begin with. It is, however, a prejudice."'],
+	["Jack Nicholson", '"Beer, it’s the best damn drink in the world."'],
+	["Sid Vicious", '"I’ve only been in love with a beer bottle and a mirror."'],
+	["", "Nájdi tie najlepšie bary v Brne!"],
+	["Charles Bukowsi", '"Stay with the beer. Beer is continuous blood. A continuous lover."'],
+	["Bill Carter", '"There is no such thing as a bad beer. It’s that some taste better than others."'],
+	["Rusell Crowe", '"I have respect for beer."'],
+	["Anne Sexton", '"God has a brown voice, as soft and full as beer."'],
+	["", "Nájdi tie najlepšie bary v Brne!"],
+	["Kevin Hearne", '"That is right, there is free beer in Irish paradise. Everyone is jealous."'],
+	["Stephen King", '"A man who lies about beer makes enemies."'],
+	["Ray Bradbury", '"Beer is intellectual. What a shame so many idiots drink it."']
+];
+//funkcia quoteChange sluzi na opakovanu zmenu citatov o pive na stranke. Citaty sa menia kazdych 6 sekund.
+let q = 0;
+function quoteChange(){
+  	quote.textContent = quotes[q][1];
+  	quoteAuthor.textContent = quotes[q][0];
+  	q = (q + 1) % quotes.length;
+  	setTimeout(quoteChange, 6000);
+};
+quoteChange();
 
-var IP;
+
 /*
-	funkcia vrati IP adresu zariadenia, ktora sluzi pri hodnoteni podniku
+	funkcia vrati IP adresu zariadenia, ktora sluzi pri hodnoteni podniku. Pri tejto funkcii sa vyuziva externy script
 */
 function getIP(json) {
     var dIP = json.ip;
     IP = dIP.split('.').join('dot');
 }
 
+//definovanie vrstvy mapy
 L.tileLayer('https://api.mapbox.com/styles/v1/matonator/cjd1izzzd2ief2smdribefn36/tiles/256/{z}/{x}/{y}?access_token=pk.eyJ1IjoibWF0b25hdG9yIiwiYSI6ImNqYXBldDZpMjByOWQyeHBmZG0zZ2V5Y2IifQ.ggo9fPdzc6mkotN1eicbMQ', {
     attribution: 'BrewserMap',
     minZoom: 11,
@@ -30,6 +81,7 @@ L.tileLayer('https://api.mapbox.com/styles/v1/matonator/cjd1izzzd2ief2smdribefn3
     accessToken: 'pk.eyJ1IjoibWF0b25hdG9yIiwiYSI6ImNqYXBldDZpMjByOWQyeHBmZG0zZ2V5Y2IifQ.ggo9fPdzc6mkotN1eicbMQ'
 }).addTo(myMap);
 
+//definovanie vlastnej ikony pre markery na mape
 var beerIcon = L.icon({
     iconUrl: 'pictograms/beer10.png',
     iconSize:     [20, 40], 
@@ -37,216 +89,34 @@ var beerIcon = L.icon({
     popupAnchor:  [-2, -38]
 });
 
-function popUp(snapshot){
-	var rating = Math.floor((-1) * snapshot.child("rating").val())
-	var remainderRating = Math.round(10 * ((-1) * snapshot.child("rating").val() - rating));
-
-	var popup = createDiv("popup");
-	var popupContent = createDiv("popupContent");
-	var popupPicture = createDiv("popupPicture");
-
-	popupPicture.innerHTML = "<img src=\"barimages/" + snapshot.key + ".jpg\" width=\"195px\" height=\"195px\">";
-	
-	var popupInfo = createDiv("popupInfo");
-	var popupNameRatingContainer = createDiv("popupNameRatingContainer");
-	var popupInfoLeftContainer = createDiv("popupInfoLeftContainer");
-	var popupHours = createDiv("popupHours");
-	var barHours = [];
-	for(i = 0; i < 7; i++){
-		if(snapshot.child("hours").child(i).child("opened").val()){
-			barHours[i] = snapshot.child("hours").child(i).child("from").val() + " - " + snapshot.child("hours").child(i).child("to").val()
-		} else barHours[i] = "Zatvorené";
-	}
-
-	popupHours.insertAdjacentHTML('beforeend', "<div class='popupHoursDays'><b>PO:</b> &nbsp &nbsp</div><div class='popupHoursValues'>" + barHours[1] + "</div><div class='popupHoursDays'><b>UT:</b> &nbsp &nbsp</div><div class='popupHoursValues'>" + barHours[2] + "</div><div class='popupHoursDays'><b>ST:</b> &nbsp &nbsp</div><div class='popupHoursValues'>" + barHours[3] + "</div><div class='popupHoursDays'><b>ŠT:</b> &nbsp &nbsp</div><div class='popupHoursValues'>" + barHours[4] + "</div><div class='popupHoursDays'><b>PI:</b> &nbsp &nbsp</div><div class='popupHoursValues'>" + barHours[5] + "</div><div class='popupHoursDays'><b>SO:</b> &nbsp &nbsp</div><div class='popupHoursValues'>" + barHours[6] +  "</div><div class='popupHoursDays'><b>NE:</b> &nbsp &nbsp</div><div class='popupHoursValues'>" + barHours[0] + "</div>");
-	(popupName = createDiv("popupName")).innerHTML = snapshot.child("name").val();
-	popupNameRatingContainer.appendChild(popupName);
-	var barRating = createDiv("barRating");
-	var ratingArray = [];
-	for (i = 0; i < rating; i++) { 
-		var barFullBeerRating = createDiv("beerRatingPictogram");
-		ratingArray.push(barFullBeerRating);
-		barFullBeerRating.innerHTML = "<img src=\"pictograms/beer10.png\" width=\"10px\" height=\"20px\">";
-		barRating.appendChild(barFullBeerRating);
-	}
-
-	var barRemainderBeerRating = createDiv("beerRatingPictogram");
-	ratingArray.push(barRemainderBeerRating);
-	barRemainderBeerRating.innerHTML = "<img src=\"pictograms/beer" + remainderRating + ".png\" width=\"10px\" height=\"20px\">";
-	barRating.appendChild(barRemainderBeerRating);
-
-	for (i = 0; i < (4 - rating); i++) { 
-		var barEmptyBeerRating = createDiv("beerRatingPictogram");
-		ratingArray.push(barEmptyBeerRating);
-		barEmptyBeerRating.innerHTML = "<img src=\"pictograms/beer0.png\" width=\"10px\" height=\"20px\">";
-		barRating.appendChild(barEmptyBeerRating);
-	}
-	var barRatingText = createDiv("barRatingText");
-	if(snapshot.child("ratings").child(IP).val() == null){
-		barRatingText.innerHTML = "(nehodnotené)";
-		ratingHover(ratingArray);
-		ratingArray[0].onclick = function(){
-			rater(barRatingText, 1, snapshot, barRating);
-		}
-		ratingArray[1].onclick = function(){
-			rater(barRatingText, 2, snapshot, barRating);
-		}
-		ratingArray[2].onclick = function(){
-			rater(barRatingText, 3, snapshot, barRating);
-		}
-		ratingArray[3].onclick = function(){
-			rater(barRatingText, 4, snapshot, barRating);
-		}
-		ratingArray[4].onclick = function(){
-			rater(barRatingText, 5, snapshot, barRating);
-		}
-	} else{
-		barRatingText.innerHTML = "(hodnotené <b>" + snapshot.child("ratings").child(IP).child("rating").val() + ",0</b>)";
-	}
-	barRating.appendChild(barRatingText);
-	popupNameRatingContainer.appendChild(barRating);
-	(barRatingSquare = createDiv("barRatingSquare")).innerHTML = rating + "," + remainderRating;
-	if(rating >= 4){
-		barRatingSquare.style.borderColor = "rgb(55, 145, 27)"
-		barRatingSquare.style.color = "rgb(55, 145, 27)"
-	} else if(rating >= 2){
-		barRatingSquare.style.borderColor = "rgb(239, 130, 40)"
-		barRatingSquare.style.color = "rgb(239, 130, 40)"
-	}
-	popupNameRatingContainer.appendChild(barRatingSquare);
-	(popupRatingCount = createDiv("popupRatingCount")).innerHTML = "(" + snapshot.child("count").val() + " hodnotení)";
-	popupNameRatingContainer.appendChild(popupRatingCount);
-
-	var popupAddress = "<div class='popupPictogram'><img src=\"pictograms/addressColorRed.png\" width=\"15px\" height=\"15px\"></div><div class = 'popupInfoSlot'>" + snapshot.child("address").val() + "</div>";
-
-	var popupWeb = "<div class='popupPictogram'><img src=\"pictograms/webColorRed.png\" width=\"15px\" height=\"15px\"></div><div class = 'popupInfoSlot'>" + snapshot.child("web").val() + "</div>";
-
-	var popupPhone = "<div class='popupPictogram'><img src=\"pictograms/phoneColorRed.png\" width=\"15px\" height=\"15px\"></div><div class = 'popupInfoSlot'>" + snapshot.child("phone").val() + "</div>";
-
-	var popupAttributes = createDiv("popupAttributes");
-
-	var popupAttributesCard = createDiv("popupAttributesIcon");
-	if(!snapshot.child("attributes").child("card").val()){
-		popupAttributesCard.style.opacity = 0.3;
-	}
-	popupAttributesCard.innerHTML = "<img src=\"pictograms/card.png\" width=\"25px\" height=\"25px\" title='Platba kartou'>"
-	popupAttributes.appendChild(popupAttributesCard);
-
-	var popupAttributesFood = createDiv("popupAttributesIcon");
-	if(!snapshot.child("attributes").child("food").val()){
-		popupAttributesFood.style.opacity = 0.3;
-	}
-	popupAttributesFood.innerHTML = "<img src=\"pictograms/food.png\" width=\"25px\" height=\"25px\" title='Varia jedlo'>"
-	popupAttributes.appendChild(popupAttributesFood);
-
-	var popupAttributesWifi = createDiv("popupAttributesIcon");
-	if(!snapshot.child("attributes").child("wifi").val()){
-		popupAttributesWifi.style.opacity = 0.3;
-	}
-	popupAttributesWifi.innerHTML = "<img src=\"pictograms/wifi.png\" width=\"25px\" height=\"25px\" title='Internet'>"
-	popupAttributes.appendChild(popupAttributesWifi);
-
-	var popupAttributesDog = createDiv("popupAttributesIcon");
-	if(!snapshot.child("attributes").child("dogs").val()){
-		popupAttributesDog.style.opacity = 0.3;
-	}
-	popupAttributesDog.innerHTML = "<img src=\"pictograms/dog.png\" width=\"25px\" height=\"25px\" title='Psi su vitané'>"
-	popupAttributes.appendChild(popupAttributesDog);
-
-	popupInfoLeftContainer.insertAdjacentHTML('beforeend', popupAddress);
-	popupInfoLeftContainer.insertAdjacentHTML('beforeend', popupWeb);
-	popupInfoLeftContainer.insertAdjacentHTML('beforeend', popupPhone);
-	popupInfoLeftContainer.appendChild(popupAttributes);
-
-	popupInfo.appendChild(popupNameRatingContainer);
-	popupInfo.appendChild(popupHours);	
-	popupInfo.appendChild(popupInfoLeftContainer);
-	
-	var popupBeerMenuContainer = createDiv("popupBeerMenuContainer");
-	var popupDraftBeersTop = createDiv("popupBeersTop");
-	popupDraftBeersTop.innerHTML = "Čapované pivá";
-	var popupBottleBeersTop = createDiv("popupBeersTop");
-	popupBottleBeersTop.innerHTML = "Fľaškové pivá";	
-	var popupDraftBeersContainer = createDiv("popupDraftBeersContainer");
-	var popupBottleBeersContainer = createDiv("popupBottleBeersContainer");
-	var path = "bars/" + snapshot.key + "/beers" 
-	var beerDataRef = firebase.database().ref(path)
-	beerDataRef.once("value").then(function(snap){
-		snap.forEach(function(childSnapshot){
-			var s = "beers/" + childSnapshot.key;
-			var beerDB = firebase.database().ref(s);
-			beerDB.once("value").then(function(snapshot) {
-				var draft = snapshot.child("draft").val();
-				var beerDiv = createDiv("popupBeerDiv");
-				var popupBeer = createDiv("popupBeer");
-				var brand = snapshot.child('brand').val()
-				var name = snapshot.child('name').val();
-				var plato = snapshot.child('p').val();
-				var type = snapshot.child("type").val();
-				popupBeer.onclick = function(){
-					popup.parentNode.removeChild(popup);
-					myMap.setView([49.197060, 16.611837], 13);				
-					searchValue = snapshot.key;
-					searchType = "beer";
-					barResult = false;
-					document.getElementById("searchRemoverContainer").style.display = "block";
-					markers.clearLayers();
-					document.getElementById("searcher").value = brand + ' ' + name + ' ' + plato + '°' + " - " + type;
-					document.getElementById("barsResults").innerHTML = "";
-
-					if(draft){
-						resultText.innerHTML = "V zadanej lokalite sa zobrazujú bary, ktoré čapujú - \xa0 <b>" + brand + ' ' + name + ' ' + plato + '°' + "</b>:"
-					} else{
-						resultText.innerHTML = "V zadanej lokalite sa zobrazujú bary, ktoré majú fľaškové pivo -  \xa0 <b>" + brand + ' ' + name + ' ' + plato + '°' + "</b>:"
-					}
-					setTimeout(function(){
-						refresh()
-					}, 300);
-					
-				}
-				popupBeer.innerHTML = "<b>" + brand + "</b> " + name + " " + plato + "°" + " " + "(" + type + ")"
-				beerDiv.appendChild(popupBeer)
-	    		if(draft){
-	    			popupDraftBeersContainer.appendChild(beerDiv);
-	    		} else{
-	    			popupBottleBeersContainer.appendChild(beerDiv);
-	    		}
-	    		
-	    	});
-	    });
-  	});
-	var popupBeerActualisationDate = createDiv("popupBeerActualisationDate");
-	popupBeerActualisationDate.innerHTML = "Aktualizované " + snapshot.child("beerActualisation").val();
-	popupContent.appendChild(popupPicture);
-	popupContent.appendChild(popupInfo);
-	popupBeerMenuContainer.appendChild(popupDraftBeersTop);
-	popupBeerMenuContainer.appendChild(popupBottleBeersTop);
-	popupBeerMenuContainer.appendChild(popupDraftBeersContainer);
-	popupBeerMenuContainer.appendChild(popupBottleBeersContainer);
-	popupBeerMenuContainer.appendChild(popupBeerActualisationDate);
-	popupContent.appendChild(popupBeerMenuContainer);
-	popup.appendChild(popupContent);
-	document.body.appendChild(popup);
-	popup.style.visiblity = "visible";
-	window.onclick = function(event) {
-	    if (event.target == popup) {
-	    	popup.parentNode.removeChild(popup);
-	    }
-	}
+/*	
+	funkcia vytvori HTML element "div" a priradi mu meno triedy na zaklade jej parametru
+	param name: pozadovany nazov elementu
+*/
+function createDiv(name){
+	var div = document.createElement("div");
+	div.className = name;
+	return div;
 }
 
-//funkcia vytvori HTML blok pre jeden bar a naplni ho informaciami
+/*
+	funkcia vytvori HTML blok pre jeden bar a naplni ho informaciami. Funkcia vytvara HTML elementy s pozadovanymi menami tried a naplna ich informaciami na zaklade dat z parametru
+	param bar: data baru z DB
+*/
 function resultItem(bar){
 	myMap.removeLayer(markers);
+
 	var day = today.getDay();
 	var key = bar.key;
 	var lat = bar.child("lat").val();
 	var lon = bar.child("lon").val();
 	var name = bar.child("name").val();
 	var address = bar.child("address").val();
+
 	var marker = L.marker([lat, lon], {icon: beerIcon});
 	var barPopup = document.createElement('div');
 	barPopup.innerHTML = "<div class='barMarker'><div class='barNamePopup'>" + name + "</div></div>"
+
 	marker.bindPopup(barPopup);
 	barPopup.onclick = function (){
 		popUp(bar);
@@ -330,6 +200,7 @@ function resultItem(bar){
 		barEmptyBeerRating.innerHTML = "<img src=\"pictograms/beer0.png\" width=\"10px\" height=\"20px\">";
 		barRating.appendChild(barEmptyBeerRating);
 	}
+	//hodnotenie
 	if(bar.child("ratings").child(IP).val() == null){
 		barRatingText.innerHTML = "(nehodnotené)";
 		ratingHover(ratingArray);
@@ -420,8 +291,215 @@ function rater(text, n, snapshot, ratingContainer){
 	})
 }
 
+/*
+	Funkcia vytvori popup baru tak, ze vytvori jednotlive HTML elementy, priradi im pozadovane nazvy tried, ktore su definovane v CSS a naplni ich infromaciami o podniku
+	param snapshot: data baru
+*/
+function popUp(snapshot){
+	var rating = Math.floor((-1) * snapshot.child("rating").val())
+	var remainderRating = Math.round(10 * ((-1) * snapshot.child("rating").val() - rating));
+
+	var popup = createDiv("popup");
+	var popupContent = createDiv("popupContent");
+	var popupPicture = createDiv("popupPicture");
+
+	popupPicture.innerHTML = "<img src=\"barimages/" + snapshot.key + ".jpg\" width=\"195px\" height=\"195px\">";
+	var x = createDiv("x");
+	x.innerHTML = "&times;";
+	popupContent.appendChild(x);
+	var popupInfo = createDiv("popupInfo");
+	var popupNameRatingContainer = createDiv("popupNameRatingContainer");
+	var popupInfoLeftContainer = createDiv("popupInfoLeftContainer");
+	var popupHours = createDiv("popupHours");
+	var barHours = [];
+	for(i = 0; i < 7; i++){
+		if(snapshot.child("hours").child(i).child("opened").val()){
+			barHours[i] = snapshot.child("hours").child(i).child("from").val() + " - " + snapshot.child("hours").child(i).child("to").val()
+		} else barHours[i] = "Zatvorené";
+	}
+
+	popupHours.insertAdjacentHTML('beforeend', "<div class='popupHoursDays'><b>PO:</b> &nbsp &nbsp</div><div class='popupHoursValues'>" + barHours[1] + "</div><div class='popupHoursDays'><b>UT:</b> &nbsp &nbsp</div><div class='popupHoursValues'>" + barHours[2] + "</div><div class='popupHoursDays'><b>ST:</b> &nbsp &nbsp</div><div class='popupHoursValues'>" + barHours[3] + "</div><div class='popupHoursDays'><b>ŠT:</b> &nbsp &nbsp</div><div class='popupHoursValues'>" + barHours[4] + "</div><div class='popupHoursDays'><b>PI:</b> &nbsp &nbsp</div><div class='popupHoursValues'>" + barHours[5] + "</div><div class='popupHoursDays'><b>SO:</b> &nbsp &nbsp</div><div class='popupHoursValues'>" + barHours[6] +  "</div><div class='popupHoursDays'><b>NE:</b> &nbsp &nbsp</div><div class='popupHoursValues'>" + barHours[0] + "</div>");
+	(popupName = createDiv("popupName")).innerHTML = snapshot.child("name").val();
+	popupNameRatingContainer.appendChild(popupName);
+	var barRating = createDiv("barRating");
+	var ratingArray = [];
+	for (i = 0; i < rating; i++) { 
+		var barFullBeerRating = createDiv("beerRatingPictogram");
+		ratingArray.push(barFullBeerRating);
+		barFullBeerRating.innerHTML = "<img src=\"pictograms/beer10.png\" width=\"10px\" height=\"20px\">";
+		barRating.appendChild(barFullBeerRating);
+	}
+
+	var barRemainderBeerRating = createDiv("beerRatingPictogram");
+	ratingArray.push(barRemainderBeerRating);
+	barRemainderBeerRating.innerHTML = "<img src=\"pictograms/beer" + remainderRating + ".png\" width=\"10px\" height=\"20px\">";
+	barRating.appendChild(barRemainderBeerRating);
+
+	for (i = 0; i < (4 - rating); i++) { 
+		var barEmptyBeerRating = createDiv("beerRatingPictogram");
+		ratingArray.push(barEmptyBeerRating);
+		barEmptyBeerRating.innerHTML = "<img src=\"pictograms/beer0.png\" width=\"10px\" height=\"20px\">";
+		barRating.appendChild(barEmptyBeerRating);
+	}
+	var barRatingText = createDiv("barRatingText");
+	if(snapshot.child("ratings").child(IP).val() == null){
+		barRatingText.innerHTML = "(nehodnotené)";
+		ratingHover(ratingArray);
+		ratingArray[0].onclick = function(){
+			rater(barRatingText, 1, snapshot, barRating);
+		}
+		ratingArray[1].onclick = function(){
+			rater(barRatingText, 2, snapshot, barRating);
+		}
+		ratingArray[2].onclick = function(){
+			rater(barRatingText, 3, snapshot, barRating);
+		}
+		ratingArray[3].onclick = function(){
+			rater(barRatingText, 4, snapshot, barRating);
+		}
+		ratingArray[4].onclick = function(){
+			rater(barRatingText, 5, snapshot, barRating);
+		}
+	} else{
+		barRatingText.innerHTML = "(hodnotené <b>" + snapshot.child("ratings").child(IP).child("rating").val() + "</b>)";
+	}
+	barRating.appendChild(barRatingText);
+	popupNameRatingContainer.appendChild(barRating);
+	(barRatingSquare = createDiv("barRatingSquare")).innerHTML = rating + "," + remainderRating;
+	if(rating >= 4){
+		barRatingSquare.style.borderColor = "rgb(55, 145, 27)"
+		barRatingSquare.style.color = "rgb(55, 145, 27)"
+	} else if(rating >= 2){
+		barRatingSquare.style.borderColor = "rgb(239, 130, 40)"
+		barRatingSquare.style.color = "rgb(239, 130, 40)"
+	}
+	popupNameRatingContainer.appendChild(barRatingSquare);
+	(popupRatingCount = createDiv("popupRatingCount")).innerHTML = "(" + snapshot.child("count").val() + " hodnotení)";
+	popupNameRatingContainer.appendChild(popupRatingCount);
+
+	var popupAddress = "<div class='popupPictogram'><img src=\"pictograms/addressColorRed.png\" width=\"15px\" height=\"15px\"></div><div class = 'popupInfoSlot'>" + snapshot.child("address").val() + "</div>";
+
+	var popupWeb = "<div class='popupPictogram'><img src=\"pictograms/webColorRed.png\" width=\"15px\" height=\"15px\"></div><div class = 'popupInfoSlot'>" + snapshot.child("web").val() + "</div>";
+
+	var popupPhone = "<div class='popupPictogram'><img src=\"pictograms/phoneColorRed.png\" width=\"15px\" height=\"15px\"></div><div class = 'popupInfoSlot'>" + snapshot.child("phone").val() + "</div>";
+
+	var popupAttributes = createDiv("popupAttributes");
+
+	var popupAttributesCard = createDiv("popupAttributesIcon");
+	if(!snapshot.child("attributes").child("card").val()){
+		popupAttributesCard.style.opacity = 0.3;
+	}
+	popupAttributesCard.innerHTML = "<img src=\"pictograms/card.png\" width=\"25px\" height=\"25px\" title='Platba kartou'>"
+	popupAttributes.appendChild(popupAttributesCard);
+
+	var popupAttributesFood = createDiv("popupAttributesIcon");
+	if(!snapshot.child("attributes").child("food").val()){
+		popupAttributesFood.style.opacity = 0.3;
+	}
+	popupAttributesFood.innerHTML = "<img src=\"pictograms/food.png\" width=\"25px\" height=\"25px\" title='Varia jedlo'>"
+	popupAttributes.appendChild(popupAttributesFood);
+
+	var popupAttributesWifi = createDiv("popupAttributesIcon");
+	if(!snapshot.child("attributes").child("wifi").val()){
+		popupAttributesWifi.style.opacity = 0.3;
+	}
+	popupAttributesWifi.innerHTML = "<img src=\"pictograms/wifi.png\" width=\"25px\" height=\"25px\" title='Internet'>"
+	popupAttributes.appendChild(popupAttributesWifi);
+
+	var popupAttributesDog = createDiv("popupAttributesIcon");
+	if(!snapshot.child("attributes").child("dogs").val()){
+		popupAttributesDog.style.opacity = 0.3;
+	}
+	popupAttributesDog.innerHTML = "<img src=\"pictograms/dog.png\" width=\"25px\" height=\"25px\" title='Psi su vitané'>"
+	popupAttributes.appendChild(popupAttributesDog);
+
+	popupInfoLeftContainer.insertAdjacentHTML('beforeend', popupAddress);
+	popupInfoLeftContainer.insertAdjacentHTML('beforeend', popupWeb);
+	popupInfoLeftContainer.insertAdjacentHTML('beforeend', popupPhone);
+	popupInfoLeftContainer.appendChild(popupAttributes);
+
+	popupInfo.appendChild(popupNameRatingContainer);
+	popupInfo.appendChild(popupHours);	
+	popupInfo.appendChild(popupInfoLeftContainer);
+
+	x.onclick = function(){
+		popup.parentNode.removeChild(popup);
+	}
+	var popupBeerMenuContainer = createDiv("popupBeerMenuContainer");
+	var popupDraftBeersTop = createDiv("popupBeersTop");
+	popupDraftBeersTop.innerHTML = "Čapované pivá";
+	var popupBottleBeersTop = createDiv("popupBeersTop");
+	popupBottleBeersTop.innerHTML = "Fľaškové pivá";	
+	var popupDraftBeersContainer = createDiv("popupDraftBeersContainer");
+	var popupBottleBeersContainer = createDiv("popupBottleBeersContainer");
+	var path = "bars/" + snapshot.key + "/beers" 
+	var beerDataRef = firebase.database().ref(path)
+	beerDataRef.once("value").then(function(snap){
+		snap.forEach(function(childSnapshot){
+			var s = "beers/" + childSnapshot.key;
+			var beerDB = firebase.database().ref(s);
+			beerDB.once("value").then(function(snapshot) {
+				var draft = snapshot.child("draft").val();
+				var beerDiv = createDiv("popupBeerDiv");
+				var popupBeer = createDiv("popupBeer");
+				var brand = snapshot.child('brand').val()
+				var name = snapshot.child('name').val();
+				var plato = snapshot.child('p').val();
+				var type = snapshot.child("type").val();
+				popupBeer.onclick = function(){
+					popup.parentNode.removeChild(popup);
+					myMap.setView([49.197060, 16.611837], 13);				
+					searchValue = snapshot.key;
+					searchType = "beer";
+					barResult = false;
+					document.getElementById("searchRemoverContainer").style.display = "block";
+					markers.clearLayers();
+					document.getElementById("searcher").value = brand + ' ' + name + ' ' + plato + '°' + " - " + type;
+					document.getElementById("barsResults").innerHTML = "";
+
+					if(draft){
+						resultText.innerHTML = "V zadanej lokalite sa zobrazujú bary, ktoré čapujú - \xa0 <b>" + brand + ' ' + name + ' ' + plato + '°' + "</b>:"
+					} else{
+						resultText.innerHTML = "V zadanej lokalite sa zobrazujú bary, ktoré majú fľaškové pivo -  \xa0 <b>" + brand + ' ' + name + ' ' + plato + '°' + "</b>:"
+					}
+					setTimeout(function(){
+						refresh()
+					}, 300);
+					
+				}
+				popupBeer.innerHTML = "<b>" + brand + "</b> " + name + " " + plato + "°" + " " + "(" + type + ")"
+				beerDiv.appendChild(popupBeer)
+	    		if(draft){
+	    			popupDraftBeersContainer.appendChild(beerDiv);
+	    		} else{
+	    			popupBottleBeersContainer.appendChild(beerDiv);
+	    		}
+	    		
+	    	});
+	    });
+  	});
+	var popupBeerActualisationDate = createDiv("popupBeerActualisationDate");
+	popupBeerActualisationDate.innerHTML = "Aktualizované " + snapshot.child("beerActualisation").val();
+	popupContent.appendChild(popupPicture);
+	popupContent.appendChild(popupInfo);
+	popupBeerMenuContainer.appendChild(popupDraftBeersTop);
+	popupBeerMenuContainer.appendChild(popupBottleBeersTop);
+	popupBeerMenuContainer.appendChild(popupDraftBeersContainer);
+	popupBeerMenuContainer.appendChild(popupBottleBeersContainer);
+	popupBeerMenuContainer.appendChild(popupBeerActualisationDate);
+	popupContent.appendChild(popupBeerMenuContainer);
+	popup.appendChild(popupContent);
+	document.body.appendChild(popup);
+	popup.style.visiblity = "visible";
+	window.onclick = function(event) {
+	    if (event.target == popup) {
+	    	popup.parentNode.removeChild(popup);
+	    }
+	}
+}
+
 /*	
-	funkcia pri presune mysi cez piktogram hodnotenia zabezpeci snizenie priehladnosti ostatnych piktogramov napravo od neho
+	funkcia pri presune mysi cez piktogram hodnotenia zabezpeci znizenie priehladnosti ostatnych piktogramov napravo od neho
 	param array: pole elementov
 */
 function ratingHover(array){
@@ -470,23 +548,9 @@ function ratingHover(array){
 	}
 }
 
-/*	
-	funkcia vytvori HTML element "div" a priradi mu meno triedy na zaklade jej parametru
-	param name: pozadovany nazov elementu
-*/
-function createDiv(name){
-	var div = document.createElement("div");
-	div.className = name;
-	return div;
-}
-
-
-var searcher = document.getElementById("searcher");
-var results = document.getElementById("searchResults");
+//funkcia search vyhladava z databazy bud typ piva, konkretne pivo, alebo bary.
 var timeout = null;
 searcher.addEventListener("input", search);
-
-//funkcia search vyhladava z databazy bud typ piva, konkretne pivo, alebo bary. 
 function search(){
 	var value = searcher.value.toUpperCase();
 	clearTimeout(timeout);
@@ -494,151 +558,143 @@ function search(){
 		if(value == null || value == ""){
 			results.style.display = "none";
 		} else{
-			results.innerHTML = "";
-			function findResults(callback){
-				var barCategory = false;
-				var beerCategory = false;
-				var typesCategory = false;
-				types.once("value").then(function(snapshot) {
-					snapshot.forEach(function(childSnapshot) {
-						var type = childSnapshot.key;
-						var accentLess = removeAccents(type.toUpperCase());
-						if(accentLess.startsWith(value) || (accentLess.indexOf(" " + value) !== -1)){
-							if(!typesCategory){
-								var category = '<div class="itemCategory">Typy pív</div>';
-								results.insertAdjacentHTML('beforeend', category);
-								typesCategory = true;
-							}
-							callback(true);
-							results.style.display = "block";
-							var typeItem = createDiv("resultItem");
-							typeItem.innerHTML = type;
-							results.appendChild(typeItem);
-							typeItem.onclick = function(){
-								noResults.style.display = "none";
-								loaderBars.style.display = "block";
-								searchType = "type";
-								searchValue = type;
-								barResult = false;
-								document.getElementById("searchRemoverContainer").style.display = "block";
-								markers.clearLayers();
-								document.getElementById("searcher").value = type;
-								document.getElementById("barsResults").innerHTML = "";
-								barsByBeerType(type);
-								resultText.innerHTML = "V zadanej lokalite sa zobrazujú bary, ktoré čapujú typ piva - \xa0 <b>" + type +"<b>:"
-							}
+			results.innerHTML = ""
+			var barCategory = false;
+			var beerCategory = false;
+			var typesCategory = false;
+			types.once("value").then(function(snapshot) {
+				emptyResult.style.display = "block";
+				results.appendChild(emptyResult);
+				results.style.display = "block";
+				emptyResult = document.getElementById("emptyResult");
+				snapshot.forEach(function(childSnapshot) {
+					var type = childSnapshot.key;
+					var accentLess = removeAccents(type.toUpperCase());
+					if(accentLess.startsWith(value) || (accentLess.indexOf(" " + value) !== -1)){
+						if(!typesCategory){
+							var category = '<div class="itemCategory">Typy pív</div>';
+							results.insertAdjacentHTML('beforeend', category);
+							typesCategory = true;
 						}
-					});
-				});
-
-				bars.once("value").then(function(snapshot) {
-					snapshot.forEach(function(childSnapshot) {
-						var name = childSnapshot.child("name").val();
-						var accentLess = removeAccents(name.toUpperCase());
-						if (accentLess.startsWith(value) || (accentLess.indexOf(" " + value) !== -1)) {
-							if(!barCategory){
-								var category = '<div class="itemCategory">Bary</div>';
-								results.insertAdjacentHTML('beforeend', category);
-								barCategory = true;
-							}
-							callback(true);
-							results.style.display = "block";
-							var lat = childSnapshot.child("lat").val();
-							var lon = childSnapshot.child("lon").val();
-							var rating = Math.floor((-1) * childSnapshot.child("rating").val());
-							var remainderRating = Math.round(10 * ((-1) * childSnapshot.child("rating").val() - rating));
-							var barItem = createDiv("resultItem");
-							(barRatingSquare = createDiv("barRatingSquareSmall")).innerHTML = rating + "," + remainderRating;
-							if(rating >= 4){
-								barRatingSquare.style.borderColor = "rgb(55, 145, 27)"
-								barRatingSquare.style.color = "rgb(55, 145, 27)"
-							} else if(rating >= 2){
-								barRatingSquare.style.borderColor = "rgb(239, 130, 40)"
-								barRatingSquare.style.color = "rgb(239, 130, 40)"
-							}
-							barItem.innerHTML = name;
-							barItem.appendChild(barRatingSquare);
-							results.appendChild(barItem);
-							barItem.onclick = function(){
-								noResults.style.display = "none";
-								document.getElementById("searchRemoverContainer").style.display = "none";
-								searcher.value = null;
-								searchValue = null;
-								searchType = null;
-								barResult = true;
-								openFilter.className = "filterItem";
-								cardFilter.className = "filterItem";
-								foodFilter.className = "filterItem";
-								wifiFilter.className = "filterItem";
-								dogsFilter.className = "filterItem";
-								markers.clearLayers();
-								document.getElementById("barsResults").innerHTML = "";
-								resultItem(childSnapshot);
-								myMap.panTo(new L.LatLng(lat, lon));
-								resultText.innerHTML = "Zobrazuje sa bar \xa0 <b>" + name +"<b>:"
-
-							}
+						emptyResult.style.display = "none";
+						results.style.display = "block";
+						var typeItem = createDiv("resultItem");
+						typeItem.innerHTML = type;
+						results.appendChild(typeItem);
+						typeItem.onclick = function(){
+							noResults.style.display = "none";
+							loaderBars.style.display = "block";
+							searchType = "type";
+							searchValue = type;
+							barResult = false;
+							document.getElementById("searchRemoverContainer").style.display = "block";
+							markers.clearLayers();
+							document.getElementById("searcher").value = type;
+							document.getElementById("barsResults").innerHTML = "";
+							barsByBeerType(type);
+							resultText.innerHTML = "V zadanej lokalite sa zobrazujú bary, ktoré čapujú typ piva - \xa0 <b>" + type +"<b>:"
 						}
-					});
+					}
 				});
+			});
+			bars.once("value").then(function(snapshot) {
+				snapshot.forEach(function(childSnapshot) {
+					var name = childSnapshot.child("name").val();
+					var accentLess = removeAccents(name.toUpperCase());
+					if (accentLess.startsWith(value) || (accentLess.indexOf(" " + value) !== -1)) {
+						if(!barCategory){
+							var category = '<div class="itemCategory">Bary</div>';
+							results.insertAdjacentHTML('beforeend', category);
+							barCategory = true;
+						}
+						emptyResult.style.display = "none";
+						results.style.display = "block";
+						var lat = childSnapshot.child("lat").val();
+						var lon = childSnapshot.child("lon").val();
+						var rating = Math.floor((-1) * childSnapshot.child("rating").val());
+						var remainderRating = Math.round(10 * ((-1) * childSnapshot.child("rating").val() - rating));
+						var barItem = createDiv("resultItem");
+						(barRatingSquare = createDiv("barRatingSquareSmall")).innerHTML = rating + "," + remainderRating;
+						if(rating >= 4){
+							barRatingSquare.style.borderColor = "rgb(55, 145, 27)"
+							barRatingSquare.style.color = "rgb(55, 145, 27)"
+						} else if(rating >= 2){
+							barRatingSquare.style.borderColor = "rgb(239, 130, 40)"
+							barRatingSquare.style.color = "rgb(239, 130, 40)"
+						}
+						barItem.innerHTML = name;
+						barItem.appendChild(barRatingSquare);
+						results.appendChild(barItem);
+						barItem.onclick = function(){
+							noResults.style.display = "none";
+							document.getElementById("searchRemoverContainer").style.display = "none";
+							searcher.value = null;
+							searchValue = null;
+							searchType = null;
+							barResult = true;
+							openFilter.className = "filterItem";
+							cardFilter.className = "filterItem";
+							foodFilter.className = "filterItem";
+							wifiFilter.className = "filterItem";
+							dogsFilter.className = "filterItem";
+							markers.clearLayers();
+							document.getElementById("barsResults").innerHTML = "";
+							resultItem(childSnapshot);
+							myMap.panTo(new L.LatLng(lat, lon));
+							resultText.innerHTML = "Zobrazuje sa bar \xa0 <b>" + name +"<b>:"
+						}
+					}
+				});
+			});
 
-				beers.once("value").then(function(snapshot) {
-					snapshot.forEach(function(childSnapshot) {
-						var brand = childSnapshot.child("brand").val();
-						var name = childSnapshot.child("name").val();
-						var beerResult =  brand + " " + name;
-						var accentLess = removeAccents(beerResult.toUpperCase());
-						var key = childSnapshot.key;
-						if (accentLess.startsWith(value) || (accentLess.indexOf(" " + value) !== -1)) {
-							var plato = childSnapshot.child("p").val();
-							var type = childSnapshot.child("type").val();
-							var draft = childSnapshot.child("draft").val();
-							if (draft){
-								type = type + " (čap.)"
+			beers.once("value").then(function(snapshot) {
+				snapshot.forEach(function(childSnapshot) {
+					var brand = childSnapshot.child("brand").val();
+					var name = childSnapshot.child("name").val();
+					var beerResult =  brand + " " + name;
+					var accentLess = removeAccents(beerResult.toUpperCase());
+					var key = childSnapshot.key;
+					if (accentLess.startsWith(value) || (accentLess.indexOf(" " + value) !== -1)) {
+						var plato = childSnapshot.child("p").val();
+						var type = childSnapshot.child("type").val();
+						var draft = childSnapshot.child("draft").val();
+						if (draft){
+							type = type + " (čap.)"
+						} else{
+							type = type + " (fľaš.)"
+						}
+						if(!beerCategory){
+							var category = '<div class="itemCategory">Pivá</div>';
+							results.insertAdjacentHTML('beforeend', category);
+							beerCategory = true;
+						}
+						emptyResult.style.display = "none";
+						results.style.display = "block";
+						var beerItem = createDiv("resultItem");
+						beerItem.innerHTML = brand + ' ' + name + ' ' + plato + '°' + " - " + type;
+						results.appendChild(beerItem);
+						beerItem.onclick = function(){
+							noResults.style.display = "none";
+							loaderBars.style.display = "block";
+							barResult = false;
+							searchValue = key;
+							searchType = "beer";
+							document.getElementById("searchRemoverContainer").style.display = "block";
+							markers.clearLayers();
+							document.getElementById("searcher").value = brand + ' ' + name + ' ' + plato + '°' + " - " + type;
+							document.getElementById("barsResults").innerHTML = "";
+							barsByBeer(key);
+							if(draft){
+								resultText.innerHTML = "V zadanej lokalite sa zobrazujú bary, ktoré čapujú - \xa0 <b>" + brand + ' ' + name + ' ' + plato + '°' + "</b>:"
 							} else{
-								type = type + " (fľaš.)"
-							}
-							if(!beerCategory){
-								var category = '<div class="itemCategory">Pivá</div>';
-								results.insertAdjacentHTML('beforeend', category);
-								beerCategory = true;
-							}
-							callback(true);
-							results.style.display = "block";
-							var beerItem = createDiv("resultItem");
-							beerItem.innerHTML = brand + ' ' + name + ' ' + plato + '°' + " - " + type;
-							results.appendChild(beerItem);
-							beerItem.onclick = function(){
-								noResults.style.display = "none";
-								loaderBars.style.display = "block";
-								barResult = false;
-								searchValue = key;
-								searchType = "beer";
-								document.getElementById("searchRemoverContainer").style.display = "block";
-								markers.clearLayers();
-								document.getElementById("searcher").value = brand + ' ' + name + ' ' + plato + '°' + " - " + type;
-								document.getElementById("barsResults").innerHTML = "";
-								barsByBeer(key);
-								if(draft){
-									resultText.innerHTML = "V zadanej lokalite sa zobrazujú bary, ktoré čapujú - \xa0 <b>" + brand + ' ' + name + ' ' + plato + '°' + "</b>:"
-								} else{
-									resultText.innerHTML = "V zadanej lokalite sa zobrazujú bary, ktoré majú fľaškové pivo -  \xa0 <b>" + brand + ' ' + name + ' ' + plato + '°' + "</b>:"
-								}
+								resultText.innerHTML = "V zadanej lokalite sa zobrazujú bary, ktoré majú fľaškové pivo -  \xa0 <b>" + brand + ' ' + name + ' ' + plato + '°' + "</b>:"
 							}
 						}
-					});
+					}
 				});
-			}
-			findResults(function(callback){
-				if(!callback){
-					var empty = createDiv("emptyResult");
-					empty.innerHTML = ("Pre zadaný výraz sa nenašli žiadne výsledky");
-					results.appendChild(empty);
-					results.style.display = "block";
-				}
 			});
 		}
-	}, 400);
+	}, 300);
 }
 
 //funkcia, ktora sa spusti pri prvom nacitani webstranky. Sluzi na zobrazovanie vsetkych barov z databazy bez obmedzenia
@@ -764,13 +820,8 @@ function barFilter(bar){
 	return;	
 }
 
-var filter = document.getElementById("filter");
-var filterDropdown = document.getElementById("filterDropdown");
-var searchRemoverButton = document.getElementById("searchRemoverButton");
-var refreshButton = document.getElementById("refreshButton");
-var refreshInfo = document.getElementById("refreshInfo");
+//funkcia sluzi na rotaciu obnovovacieho piktogramu na mape
 var clicks = 0;
-
 refreshButton.onclick = function(){
 	clicks += 1;
 	document.getElementById("refreshButtonPictogram").style.transform = "rotate("+(clicks*720)+"deg)"
@@ -801,6 +852,7 @@ function refresh(){
 	}
 }
 
+//funkcia po kliknuti na prislusny element odstrani z vyhladavaca retazec a nastavi hodnoty vyhladavania na null. Funkcia taktiez obnovi vysledky barov
 searchRemoverButton.onclick = function(){
 	document.getElementById("searchRemoverContainer").style.display = "none";
 	searcher.value = null;
@@ -811,19 +863,13 @@ searchRemoverButton.onclick = function(){
 	resultText.innerHTML = "Zobrazujú sa všetky bary v zadanej lokalite:"
 }
 
+//funkcia po kliknuti mimo okno vysledkov zatvori vysledky
 document.addEventListener('click', function(event) {
   var click = searcher.contains(event.target);
   if (!click) {
     results.style.display = "none";
   }
 });
-
-var openFilter = document.getElementById("open");
-var foodFilter = document.getElementById("food");
-var wifiFilter = document.getElementById("wifi");
-var dogsFilter = document.getElementById("dogs");
-var cardFilter = document.getElementById("card");
-
 
 /*
 	funkcia po kliknuti na filter zmeni nazov triedy elementu daneho filtra a pomocou funkcie refresh obnovi vysledky barov
@@ -856,12 +902,9 @@ dogsFilter.onclick = function(){
 	filterClick(dogsFilter);
 }
 
-myMap.on('moveend', function(){
-	refreshInfo.style.display = "flex";
-})
 
-
-/*funkcia odstrani zo slova diakritiku. Vyuzivaju sa v nej iba velke pismena, pretoze tato funkcia je volana iba na retazec s velkymi pismenami
+/*
+	funkcia odstrani zo slova diakritiku. Vyuzivaju sa v nej iba velke pismena, pretoze tato funkcia je volana iba na retazec s velkymi pismenami
 	param strAccents: retazec s diakritikou
 */
 function removeAccents(strAccents) {
@@ -879,3 +922,8 @@ function removeAccents(strAccents) {
 		strAccentsOut = strAccentsOut.join('');
 		return strAccentsOut;
 }
+
+
+myMap.on('moveend', function(){
+	refreshInfo.style.display = "flex";
+})
